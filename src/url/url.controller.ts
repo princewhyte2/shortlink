@@ -12,12 +12,35 @@ import {
 } from '@nestjs/common';
 import { Response } from 'express';
 import { UrlService } from './url.service';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBody,
+  ApiProperty,
+} from '@nestjs/swagger';
 
+class EncodeDto {
+  @ApiProperty()
+  url: string;
+}
+class DecodeDto {
+  @ApiProperty()
+  shortUrl: string;
+}
+
+@ApiTags('urls')
 @Catch(NotFoundException, BadRequestException)
-@Controller('')
+@Controller()
 export class UrlController {
   constructor(private readonly urlService: UrlService) {}
 
+  @ApiOperation({ summary: 'Encodes a URL to a shortened URL' })
+  @ApiBody({ description: 'Encode url', type: EncodeDto })
+  @ApiResponse({
+    status: 201,
+    description: 'The shortened URL has been successfully created',
+  })
   @Post('encode')
   encodeUrl(@Body('url') url: string): { shortUrl: string } {
     if (!url) {
@@ -28,6 +51,13 @@ export class UrlController {
     return { shortUrl };
   }
 
+  @ApiOperation({ summary: 'Decodes a shortened URL to its original URL' })
+  @ApiBody({ description: 'Decode url', type: DecodeDto })
+  @ApiResponse({
+    status: 200,
+    description: 'The original URL has been successfully retrieved',
+  })
+  @ApiResponse({ status: 404, description: 'The short URL does not exist' })
   @Post('decode')
   decodeUrl(@Body('shortUrl') shortUrl: string): { url: string } {
     if (!shortUrl) {
@@ -38,6 +68,12 @@ export class UrlController {
     return { url };
   }
 
+  @ApiOperation({ summary: 'Returns basic stats of a short URL' })
+  @ApiResponse({
+    status: 200,
+    description: 'The stats of the short URL have been successfully retrieved',
+  })
+  @ApiResponse({ status: 404, description: 'The short URL does not exist' })
   @Get('statistic/:urlPath')
   getStats(@Param('urlPath') urlPath: string): any {
     if (!urlPath) {
@@ -48,7 +84,13 @@ export class UrlController {
     return stats;
   }
 
-  @Get(':urlPath')
+  @ApiOperation({ summary: 'Redirects to the original URL' })
+  @ApiResponse({
+    status: 301,
+    description: 'The request has been successfully redirected',
+  })
+  @ApiResponse({ status: 404, description: 'The short URL does not exist' })
+  @Get('/:urlPath')
   @HttpCode(301)
   redirectUrl(@Param('urlPath') urlPath: string, @Res() res: Response): any {
     if (!urlPath) {
@@ -58,12 +100,10 @@ export class UrlController {
     const originalUrl = this.urlService.getUrl(urlPath);
     if (originalUrl) {
       this.urlService.addClick(urlPath);
-      // return { url: originalUrl, statusCode: 301 };
 
       return res.redirect(301, originalUrl);
     }
     throw new NotFoundException('url not found');
-    // return { url: '/', statusCode: 404 };
   }
 
   // This method will handle NotFoundException thrown in the above endpoint method
